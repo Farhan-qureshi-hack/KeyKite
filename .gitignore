@@ -1,16 +1,4 @@
-# dependencies
 node_modules/
-npm-debug.log
-yarn-error.log
-
-# build output
 .next/
-out/
-dist/
-
-# env files
-.env
+.DS_Store
 .env.local
-.env.development.local
-.env.test.local
-.env.production.local
