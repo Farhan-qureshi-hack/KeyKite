@@ -1,35 +1,28 @@
-// /server/security.ts
-import fs from "fs";
-import path from "path";
+// utils/security.ts
 
-export function readFileSafe(filePath: string): string | null {
-  try {
-    return fs.readFileSync(filePath, "utf-8");
-  } catch (err) {
-    return null;
-  }
+// Only types and frontend-safe helpers
+export interface Finding {
+  line: number;
+  type: string;
+  snippet: string;
+  redacted?: boolean;
 }
 
-export function scanFile(filePath: string) {
-  const content = readFileSafe(filePath);
-  if (!content) return [];
-  // Example: dummy scan
-  const findings = [];
-  if (content.includes("AKIA")) {
-    findings.push({ line: 1, type: "AWS Access Key", snippet: "AKIA..." });
-  }
-  return findings;
-}
+// Optional: dummy function for frontend simulation
+export const dummyScan = (content: string): Finding[] => {
+  const lines = content.split("\n");
+  const findings: Finding[] = [];
 
-export function scanDirectory(dirPath: string) {
-  const files = fs.readdirSync(dirPath);
-  let allFindings: any[] = [];
-  for (const file of files) {
-    const filePath = path.join(dirPath, file);
-    const stats = fs.statSync(filePath);
-    if (stats.isFile()) {
-      allFindings = allFindings.concat(scanFile(filePath));
+  lines.forEach((line, index) => {
+    if (line.includes("SECRET")) {
+      findings.push({
+        line: index + 1,
+        type: "SecretFound",
+        snippet: line,
+        redacted: true,
+      });
     }
-  }
-  return allFindings;
-}
+  });
+
+  return findings;
+};
