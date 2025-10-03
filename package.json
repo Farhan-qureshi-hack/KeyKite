@@ -1,25 +1,24 @@
 {
   "name": "keykite",
   "version": "1.0.0",
-  "description": "AI Bug Bounty Hunter - Scan GitHub repos for secrets",
-  "main": "pages/api/scan.ts",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "axios": "^1.5.0",
-    "html-to-text": "^9.0.1",
-    "jsdom": "^22.1.0",
-    "next": "^15.5.4",
+    "next": "^13.5.11",
+    "pdfkit": "^0.17.2",
     "react": "18.2.0",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "simple-git": "^3.18.0"
   },
   "devDependencies": {
-    "@types/node": "24.6.2",
-    "@types/react": "19.2.0",
+    "@types/node": "^20.4.2",
+    "@types/pdfkit": "^0.17.3",
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.6",
     "typescript": "^5.2.2"
-  },
-  "license": "MIT"
+  }
 }
