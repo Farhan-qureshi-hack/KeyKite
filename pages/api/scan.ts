@@ -1,89 +1,80 @@
 // pages/api/scan.ts
-import type { NextApiRequest, NextApiResponse } from 'next';
-import axios, { AxiosResponse } from 'axios';
-import { scanContent, Finding } from '../../utils/security';
+import type { NextApiRequest, NextApiResponse } from "next";
+import os from "os";
+import path from "path";
+import fs from "fs";
+import { simpleGit } from "simple-git";
+import { scanFile, readFileSafe, Finding } from "../../utils/security";
 
-const RETRY = 2;
-const DELAY_MS = 250; // small delay between retries to reduce spiky errors
-const MAX_FILES = 1000; // safety cap to avoid scanning huge trees (adjustable)
+type Resp = { success: true; findings: Finding[]; scanned: number; totalFiles: number } | { success: false; error: string };
 
-async function axiosGetWithRetry(url: string, headers: any, retries = RETRY): Promise<AxiosResponse<any>> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
+function walkDir(dir: string, exts: string[] = []): string[] {
+  const out: string[] = [];
+  const items = fs.readdirSync(dir);
+  for (const it of items) {
+    const full = path.join(dir, it);
     try {
-      return await axios.get(url, { headers, timeout: 15000 });
-    } catch (err: any) {
-      if (attempt === retries) throw err;
-      await new Promise((r) => setTimeout(r, DELAY_MS * (attempt + 1)));
-    }
+      const st = fs.statSync(full);
+      if (st.isDirectory()) {
+        out.push(...walkDir(full, exts));
+      } else if (st.isFile()) {
+        if (exts.length === 0 || exts.some(e => full.endsWith(e))) out.push(full);
+      }
+    } catch (e) { /* ignore */ }
   }
-  throw new Error('unreachable');
+  return out;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse<Resp>) {
+  if (req.method !== "POST") return res.status(405).json({ success: false, error: "POST only" });
+
+  const { repoUrl } = req.body;
+  if (!repoUrl || typeof repoUrl !== "string") return res.status(400).json({ success: false, error: "repoUrl required" });
+
+  // temp dir
+  const tmp = path.join(os.tmpdir(), `keykite-${Date.now()}`);
+  const git = simpleGit();
+  const findings: Finding[] = [];
+
   try {
-    const repoParam = (req.query.repo as string) || '';
-    if (!repoParam) return res.status(400).json({ success: false, error: 'Missing repo query parameter' });
-
+    // Prepare clone URL: if GITHUB_TOKEN exists and repoUrl is github.com, use token to allow private clones
+    let cloneUrl = repoUrl;
     const token = process.env.GITHUB_TOKEN;
-    if (!token) return res.status(500).json({ success: false, error: 'Server missing GITHUB_TOKEN' });
-
-    const parsed = repoParam.replace(/https?:\/\/(www\.)?github\.com\//i, '').split('/');
-    if (parsed.length < 2) return res.status(400).json({ success: false, error: 'Invalid GitHub repo URL' });
-    const owner = parsed[0];
-    const repo = parsed[1];
-
-    const headers = { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' };
-
-    // 1) Get repo info to find default branch
-    const repoInfo = await axiosGetWithRetry(`https://api.github.com/repos/${owner}/${repo}`, headers);
-    const defaultBranch = repoInfo.data?.default_branch || 'main';
-
-    // 2) Fetch Git tree recursively
-    const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(defaultBranch)}?recursive=1`;
-    const treeResp = await axiosGetWithRetry(treeUrl, headers);
-
-    const tree = treeResp.data?.tree || [];
-    let files = tree.filter((f: any) => f.type === 'blob');
-    if (!Array.isArray(files)) files = [];
-
-    // Safety cap
-    const totalFiles = Math.min(files.length, MAX_FILES);
-    if (files.length > MAX_FILES) {
-      files = files.slice(0, MAX_FILES);
+    const githubMatch = repoUrl.match(/https?:\/\/(github\.com\/.+)/i);
+    if (token && githubMatch) {
+      // embed token for cloning: https://<token>@github.com/owner/repo.git
+      // ensure .git suffix
+      const repoPath = githubMatch[1].replace(/^\/?/, "");
+      const normalized = repoUrl.endsWith(".git") ? repoUrl : `https://github.com/${repoPath}.git`;
+      const u = new URL(normalized);
+      u.username = token;
+      cloneUrl = u.toString();
     }
 
-    const findings: Finding[] = [];
+    // clone shallow to temp dir
+    await git.clone(cloneUrl, tmp, ['--depth', '1']);
+    // walk files, limit to relevant extensions
+    const files = walkDir(tmp, ['.js', '.ts', '.jsx', '.tsx', '.env', '.json', '.py', '.go', '.rb', '.rs', '.java', '.sh', '.yaml', '.yml', '.md']);
+    const totalFiles = files.length;
     let scanned = 0;
 
     for (const file of files) {
       scanned++;
-      try {
-        // fetch file content
-        const fileUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(file.path)}?ref=${defaultBranch}`;
-        const blobResp = await axiosGetWithRetry(fileUrl, headers);
-
-        const { data } = blobResp;
-        if (!data || !data.content || data.encoding !== 'base64') {
-          continue;
-        }
-        const content = Buffer.from(data.content, 'base64').toString('utf8');
-
-        // scan safely
-        const fileFindings = scanContent(file.path, content);
-        // push redacted/snippet + entropy already present
-        findings.push(...fileFindings.map((f) => {
-          // ensure we never return raw secrets in snippet field by default in UI (we keep snippet for internal checks)
-          return { ...f, snippet: f.redacted || f.snippet };
-        }));
-      } catch (err: any) {
-        console.warn('Skipped file:', file.path, err.message || err);
-        // continue scanning next file
-      }
+      const content = readFileSafe(file);
+      if (!content) continue;
+      const fileFindings = scanFile(path.relative(tmp, file), content);
+      // redact snippets in returned results (we already have redacted)
+      findings.push(...fileFindings);
     }
 
-    return res.status(200).json({ success: true, results: findings, scanned, total: totalFiles });
+    // cleanup
+    try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) { /* ignore */ }
+
+    return res.status(200).json({ success: true, findings, scanned, totalFiles });
   } catch (err: any) {
-    console.error('Scan error:', err.message || err);
-    return res.status(500).json({ success: false, error: err.message || 'Scan failed' });
+    // cleanup
+    try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (e) { /* ignore */ }
+    const msg = err?.message || String(err);
+    return res.status(500).json({ success: false, error: `Scan failed: ${msg}` });
   }
 }
