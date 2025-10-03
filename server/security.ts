@@ -1,86 +1,51 @@
 // server/security.ts
-
 import fs from "fs";
 import path from "path";
+import { Finding } from "../utils/security";
 
-// ----------------------
-// Types
-// ----------------------
-export interface Finding {
-  line: number;
-  type: string;
-  snippet: string;
-  redacted?: boolean;
-}
-
-// ----------------------
-// Utility Functions
-// ----------------------
-
-// Safe file read (returns empty string on error)
+// Safely read a file
 export const readFileSafe = (filePath: string): string => {
   try {
     return fs.readFileSync(filePath, "utf-8");
-  } catch (err) {
-    console.error(`Failed to read file ${filePath}:`, err);
+  } catch {
     return "";
   }
 };
 
-// Scan a single file (dummy example)
+// Scan file content for secrets
 export const scanFile = (filePath: string): Finding[] => {
   const content = readFileSafe(filePath);
-  const findings: Finding[] = [];
-
   const lines = content.split("\n");
-  lines.forEach((line, index) => {
-    if (line.includes("SECRET")) {
-      findings.push({
-        line: index + 1,
-        type: "SecretFound",
+  const results: Finding[] = [];
+
+  lines.forEach((line, idx) => {
+    if (line.toLowerCase().includes("password")) {
+      results.push({
+        line: idx + 1,
+        type: "Potential Secret",
         snippet: line,
-        redacted: true,
       });
     }
   });
 
-  return findings;
+  return results;
 };
 
-// Scan raw content (string)
-export const scanContent = (content: string): Finding[] => {
-  const findings: Finding[] = [];
-  const lines = content.split("\n");
-
-  lines.forEach((line, index) => {
-    if (line.includes("SECRET")) {
-      findings.push({
-        line: index + 1,
-        type: "SecretFound",
-        snippet: line,
-        redacted: true,
-      });
-    }
-  });
-
-  return findings;
-};
-
-// Scan all files in a directory recursively
+// Scan all files in a directory (recursively)
 export const scanDirectory = (dirPath: string): Finding[] => {
-  let allFindings: Finding[] = [];
+  const results: Finding[] = [];
+  const files = fs.readdirSync(dirPath);
 
-  const items = fs.readdirSync(dirPath, { withFileTypes: true });
+  files.forEach((file) => {
+    const fullPath = path.join(dirPath, file);
+    const stats = fs.statSync(fullPath);
 
-  items.forEach((item) => {
-    const fullPath = path.join(dirPath, item.name);
-
-    if (item.isDirectory()) {
-      allFindings = allFindings.concat(scanDirectory(fullPath));
-    } else if (item.isFile()) {
-      allFindings = allFindings.concat(scanFile(fullPath));
+    if (stats.isDirectory()) {
+      results.push(...scanDirectory(fullPath));
+    } else {
+      results.push(...scanFile(fullPath));
     }
   });
 
-  return allFindings;
+  return results;
 };

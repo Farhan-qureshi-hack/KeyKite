@@ -1,69 +1,54 @@
-"use client";
-
+// app/components/SelfTest.tsx
 import { useState } from "react";
-import { Finding } from "../../utils/security";
+import { Finding } from "../../utils/security"; // frontend-safe type
 
 interface SelfTestProps {
   runSelfTest: () => Promise<Finding[]>;
 }
 
-export default function SelfTest({ runSelfTest }: SelfTestProps) {
-  const [results, setResults] = useState<Finding[] | null>(null);
+const SelfTest = ({ runSelfTest }: SelfTestProps) => {
+  const [results, setResults] = useState<Finding[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const handleClick = async () => {
+  const handleRun = async () => {
     setLoading(true);
-    const res = await runSelfTest();
-    setResults(res);
-    setLoading(false);
+    try {
+      const findings = await runSelfTest();
+      setResults(findings);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div style={{ marginTop: "16px" }}>
-      <button
-        onClick={handleClick}
-        style={{
-          padding: "8px 12px",
-          borderRadius: "4px",
-          border: "none",
-          backgroundColor: "#28a745",
-          color: "white",
-          cursor: "pointer",
-        }}
-        disabled={loading}
-      >
-        {loading ? "Running..." : "Run Self-Test"}
+    <div>
+      <button onClick={handleRun} disabled={loading}>
+        {loading ? "Running..." : "Run Self Test"}
       </button>
-
-      {results && results.length > 0 && (
-        <div style={{ marginTop: "16px" }}>
-          <h3>Self-Test Results:</h3>
-          <table style={{ borderCollapse: "collapse", width: "100%" }}>
-            <thead>
-              <tr>
-                <th style={{ border: "1px solid #eee", padding: 8 }}>File</th>
-                <th style={{ border: "1px solid #eee", padding: 8 }}>Line</th>
-                <th style={{ border: "1px solid #eee", padding: 8 }}>Type</th>
-                <th style={{ border: "1px solid #eee", padding: 8 }}>Snippet</th>
+      {results.length > 0 && (
+        <table style={{ borderCollapse: "collapse", marginTop: 16 }}>
+          <thead>
+            <tr>
+              <th>Line</th>
+              <th>Type</th>
+              <th>Snippet</th>
+            </tr>
+          </thead>
+          <tbody>
+            {results.map((r, idx) => (
+              <tr key={idx}>
+                <td style={{ border: "1px solid #eee", padding: 8 }}>{r.line}</td>
+                <td style={{ border: "1px solid #eee", padding: 8 }}>{r.type}</td>
+                <td style={{ border: "1px solid #eee", padding: 8, fontFamily: "monospace" }}>
+                  {r.snippet}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {results.map((r, idx) => (
-                <tr key={idx}>
-                  <td style={{ border: "1px solid #eee", padding: 8 }}>{r.file}</td>
-                  <td style={{ border: "1px solid #eee", padding: 8 }}>{r.line}</td>
-                  <td style={{ border: "1px solid #eee", padding: 8 }}>{r.type}</td>
-                  <td style={{ border: "1px solid #eee", padding: 8, fontFamily: "monospace" }}>
-                    {r.redacted ? r.redacted : r.snippet}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       )}
-
-      {results && results.length === 0 && <p>No issues detected.</p>}
     </div>
   );
-}
+};
+
+export default SelfTest;

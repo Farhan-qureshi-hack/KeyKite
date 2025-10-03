@@ -1,11 +1,13 @@
-interface Finding {
-  line: number;
-  type: string;
-  snippet: string;
+// app/components/ScanResults.tsx
+import { Finding } from "../../utils/security";
+
+interface ScanResultsProps {
+  results: Finding[];
 }
 
-export default function ScanResults({ results }: { results: Finding[] }) {
-  if (!results.length) return <p>No findings yet.</p>;
+const ScanResults = ({ results }: ScanResultsProps) => {
+  if (!results || results.length === 0) return <div>No findings yet.</div>;
+
   return (
     <table style={{ borderCollapse: "collapse", width: "100%" }}>
       <thead>
@@ -28,4 +30,6 @@ export default function ScanResults({ results }: { results: Finding[] }) {
       </tbody>
     </table>
   );
-}
+};
+
+export default ScanResults;

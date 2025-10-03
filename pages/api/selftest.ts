@@ -1,25 +1,14 @@
 // pages/api/selftest.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import path from "path";
-import { scanFile, Finding } from "../../utils/security";
-
-type SelfTestResponse = {
-  findings: Finding[];
-  error?: string;
-};
+import { scanContent, Finding } from "../../utils/security";
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<SelfTestResponse>
+  res: NextApiResponse<Finding[]>
 ) {
-  try {
-    // Example self-test file
-    const testFilePath = path.join(process.cwd(), "sample.js");
-    const findings = scanFile(testFilePath);
+  // Demo self-test content
+  const content = "This is a test.\nPassword=1234\nAnother line";
+  const findings = await scanContent(content);
 
-    return res.status(200).json({ findings });
-  } catch (err: any) {
-    console.error(err);
-    return res.status(500).json({ findings: [], error: err.message });
-  }
+  res.status(200).json(findings);
 }

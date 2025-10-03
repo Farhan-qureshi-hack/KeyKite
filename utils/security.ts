@@ -1,28 +1,27 @@
 // utils/security.ts
 
-// Only types and frontend-safe helpers
+// Types for findings
 export interface Finding {
   line: number;
   type: string;
   snippet: string;
-  redacted?: boolean;
 }
 
-// Optional: dummy function for frontend simulation
-export const dummyScan = (content: string): Finding[] => {
+// Placeholder frontend logic (no Node APIs here)
+export const scanContent = async (content: string): Promise<Finding[]> => {
+  // For demo purposes: detect "password" in content
   const lines = content.split("\n");
-  const findings: Finding[] = [];
+  const results: Finding[] = [];
 
-  lines.forEach((line, index) => {
-    if (line.includes("SECRET")) {
-      findings.push({
-        line: index + 1,
-        type: "SecretFound",
+  lines.forEach((line, idx) => {
+    if (line.toLowerCase().includes("password")) {
+      results.push({
+        line: idx + 1,
+        type: "Potential Secret",
         snippet: line,
-        redacted: true,
       });
     }
   });
 
-  return findings;
+  return results;
 };

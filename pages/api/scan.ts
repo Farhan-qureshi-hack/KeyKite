@@ -1,11 +1,21 @@
+// pages/api/scan.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { scanDirectory } from "../../server/security";
+import { scanDirectory, Finding } from "../../server/security";
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).end();
-  const { path } = req.body;
-  if (!path) return res.status(400).json({ error: "Path is required" });
+export default function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<Finding[]>
+) {
+  const { dir } = req.query;
+  if (!dir || typeof dir !== "string") {
+    res.status(400).json([]);
+    return;
+  }
 
-  const findings = scanDirectory(path);
-  res.status(200).json({ findings });
+  try {
+    const findings = scanDirectory(dir);
+    res.status(200).json(findings);
+  } catch {
+    res.status(500).json([]);
+  }
 }
