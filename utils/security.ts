@@ -2,77 +2,97 @@
 import fs from "fs";
 import path from "path";
 
-// Define Finding type
+// Type for findings
 export interface Finding {
+  file: string;
+  line: number;
   type: string;
   snippet: string;
-  line?: number;
-  redacted?: string; // Optional, for UI display
 }
 
-// Safely read a file
+// Safely read file content
 export function readFileSafe(filePath: string): string | null {
   try {
-    return fs.readFileSync(filePath, "utf8");
+    return fs.readFileSync(filePath, "utf-8");
   } catch (err) {
-    console.error(`Failed to read file ${filePath}:`, err);
+    console.warn(`Cannot read file: ${filePath}`);
     return null;
   }
 }
 
-// Scan content for secrets
-export function scanContent(content: string): Finding[] {
+// Scan a single file for secrets
+export function scanFile(filePath: string): Finding[] {
+  const content = readFileSafe(filePath);
+  if (!content) return [];
+
   const findings: Finding[] = [];
+  const lines = content.split("\n");
 
-  // Regex for AWS Access Key
-  const awsKeyRegex = /AKIA[0-9A-Z]{16}/g;
-  const apiKeyRegex = /api_[0-9a-zA-Z]{16,}/g;
+  const patterns: { type: string; regex: RegExp }[] = [
+    { type: "AWS Access Key", regex: /AKIA[0-9A-Z]{16}/ },
+    { type: "Generic API Key", regex: /api_[0-9a-zA-Z]{16,}/ },
+  ];
 
-  content.match(awsKeyRegex)?.forEach(key => {
-    findings.push({
-      type: "AWS Access Key",
-      snippet: key,
-      redacted: key.slice(0, 4) + "..." + key.slice(-4) // partially hide for UI
-    });
-  });
-
-  content.match(apiKeyRegex)?.forEach(key => {
-    findings.push({
-      type: "Generic API Key",
-      snippet: key,
-      redacted: key.slice(0, 4) + "..." + key.slice(-4)
+  lines.forEach((line, index) => {
+    patterns.forEach((p) => {
+      const match = line.match(p.regex);
+      if (match) {
+        findings.push({
+          file: filePath,
+          line: index + 1,
+          type: p.type,
+          snippet: match[0],
+        });
+      }
     });
   });
 
   return findings;
 }
 
-// Scan a file for secrets
-export function scanFile(filePath: string): Finding[] {
-  const content = readFileSafe(filePath);
-  if (!content) return [];
-  return scanContent(content);
-}
+// Scan raw content (string) for secrets
+export function scanContent(content: string, fileName = "unknown"): Finding[] {
+  const findings: Finding[] = [];
+  const lines = content.split("\n");
 
-// Optional: recursively scan a directory
-export function scanDirectory(dirPath: string, exts: string[] = [".js", ".ts", ".env"]): Finding[] {
-  const results: Finding[] = [];
-  const files = fs.readdirSync(dirPath);
+  const patterns: { type: string; regex: RegExp }[] = [
+    { type: "AWS Access Key", regex: /AKIA[0-9A-Z]{16}/ },
+    { type: "Generic API Key", regex: /api_[0-9a-zA-Z]{16,}/ },
+  ];
 
-  files.forEach(file => {
-    const fullPath = path.join(dirPath, file);
-    const stat = fs.statSync(fullPath);
-
-    if (stat.isDirectory()) {
-      results.push(...scanDirectory(fullPath, exts));
-    } else if (exts.includes(path.extname(file))) {
-      results.push(...scanFile(fullPath));
-    }
+  lines.forEach((line, index) => {
+    patterns.forEach((p) => {
+      const match = line.match(p.regex);
+      if (match) {
+        findings.push({
+          file: fileName,
+          line: index + 1,
+          type: p.type,
+          snippet: match[0],
+        });
+      }
+    });
   });
 
-  return results;
+  return findings;
 }
 
-// Export everything for API usage
-export { scanFile, scanContent, scanDirectory };
+// Recursively scan a directory for secrets
+export function scanDirectory(dirPath: string): Finding[] {
+  let allFindings: Finding[] = [];
 
+  if (!fs.existsSync(dirPath)) return [];
+
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dirPath, entry.name);
+    if (entry.isDirectory()) {
+      allFindings = allFindings.concat(scanDirectory(fullPath));
+    } else if (entry.isFile()) {
+      allFindings = allFindings.concat(scanFile(fullPath));
+    }
+  }
+
+  return allFindings;
+}
