@@ -74,4 +74,5 @@ export function scanDirectory(dirPath: string, exts: string[] = [".js", ".ts", "
 }
 
 // Export everything for API usage
-export { readFileSafe, scanFile, scanContent, scanDirectory };
+export { scanFile, scanContent, scanDirectory };
+
