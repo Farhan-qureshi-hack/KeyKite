@@ -1,25 +1,25 @@
 // pages/api/selftest.ts
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { scanRepoContent, Finding } from '../../utils/security';
+import type { NextApiRequest, NextApiResponse } from "next";
+import path from "path";
+import { scanFile, Finding } from "../../utils/security";
+
+type SelfTestResponse = {
+  findings: Finding[];
+  error?: string;
+};
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse<SelfTestResponse>
 ) {
   try {
-    // Sample content to run self-test
-    const testContent = `
-      const awsKey = "AKIAEXAMPLE123456";
-      const apiKey = "api_example_890";
-    `;
+    // Example self-test file
+    const testFilePath = path.join(process.cwd(), "sample.js");
+    const findings = scanFile(testFilePath);
 
-    // Run the scan using the latest function
-    const results: Finding[] = scanRepoContent(testContent);
-
-    // Return results
-    res.status(200).json({ success: true, results });
-  } catch (error) {
-    console.error('Self-test error:', error);
-    res.status(500).json({ success: false, error: 'Self-test failed' });
+    return res.status(200).json({ findings });
+  } catch (err: any) {
+    console.error(err);
+    return res.status(500).json({ findings: [], error: err.message });
   }
 }

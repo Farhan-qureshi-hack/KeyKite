@@ -2,24 +2,48 @@
 
 import { useState } from "react";
 
-export default function RepoInput({ onScan }: { onScan: (url: string) => void }) {
-  const [value, setValue] = useState("");
+interface RepoInputProps {
+  onSubmit: (repoUrl: string) => void;
+}
 
-  const submit = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!value) return alert("Enter a repo URL (e.g. https://github.com/owner/repo)");
-    onScan(value);
+export default function RepoInput({ onSubmit }: RepoInputProps) {
+  const [repoUrl, setRepoUrl] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!repoUrl) return;
+    onSubmit(repoUrl);
+    setRepoUrl("");
   };
 
   return (
-    <form onSubmit={submit} style={{ marginBottom: 12 }}>
+    <form onSubmit={handleSubmit} style={{ marginBottom: "16px" }}>
       <input
-        placeholder="https://github.com/owner/repo"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        style={{ width: 480, padding: 8, marginRight: 8 }}
+        type="text"
+        value={repoUrl}
+        placeholder="Enter GitHub repository URL"
+        onChange={(e) => setRepoUrl(e.target.value)}
+        style={{
+          padding: "8px",
+          width: "300px",
+          marginRight: "8px",
+          borderRadius: "4px",
+          border: "1px solid #ccc",
+        }}
       />
-      <button type="submit" style={{ padding: "8px 12px" }}>Scan Repo</button>
+      <button
+        type="submit"
+        style={{
+          padding: "8px 12px",
+          borderRadius: "4px",
+          border: "none",
+          backgroundColor: "#0070f3",
+          color: "white",
+          cursor: "pointer",
+        }}
+      >
+        Scan Repo
+      </button>
     </form>
   );
 }
