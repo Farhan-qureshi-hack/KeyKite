@@ -1,14 +1,14 @@
 // pages/api/selftest.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { scanContent, Finding } from "../../utils/security";
+import { scanContent } from "../../server/security";
+import { Finding } from "../../server/security";
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Finding[]>
-) {
-  // Demo self-test content
-  const content = "This is a test.\nPassword=1234\nAnother line";
-  const findings = await scanContent(content);
-
-  res.status(200).json(findings);
+export default function handler(req: NextApiRequest, res: NextApiResponse<{ findings: Finding[] }>) {
+  const sample = `// sample.js
+const aws = "AKIAABCDEFGHIJKLMNOP";
+const api = "api_example_abcdef123456";
+const password = "password=secret123";
+`;
+  const findings = scanContent(sample, "sample.js");
+  res.status(200).json({ findings });
 }

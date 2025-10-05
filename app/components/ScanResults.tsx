@@ -1,35 +1,34 @@
 // app/components/ScanResults.tsx
+"use client";
 import { Finding } from "../../utils/security";
 
-interface ScanResultsProps {
-  results: Finding[];
-}
-
-const ScanResults = ({ results }: ScanResultsProps) => {
-  if (!results || results.length === 0) return <div>No findings yet.</div>;
+export default function ScanResults({ results }: { results: Finding[] }) {
+  if (!results || results.length === 0) return <div>No findings.</div>;
 
   return (
-    <table style={{ borderCollapse: "collapse", width: "100%" }}>
-      <thead>
-        <tr>
-          <th>Line</th>
-          <th>Type</th>
-          <th>Snippet</th>
-        </tr>
-      </thead>
-      <tbody>
-        {results.map((r, idx) => (
-          <tr key={idx}>
-            <td style={{ border: "1px solid #eee", padding: 8 }}>{r.line}</td>
-            <td style={{ border: "1px solid #eee", padding: 8 }}>{r.type}</td>
-            <td style={{ border: "1px solid #eee", padding: 8, fontFamily: "monospace" }}>
-              {r.snippet}
-            </td>
+    <div style={{ marginTop: 12 }}>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            <th style={{ border: "1px solid #eee", padding: 8 }}>File</th>
+            <th style={{ border: "1px solid #eee", padding: 8 }}>Line</th>
+            <th style={{ border: "1px solid #eee", padding: 8 }}>Type</th>
+            <th style={{ border: "1px solid #eee", padding: 8 }}>Snippet</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {results.map((r, i) => (
+            <tr key={i}>
+              <td style={{ border: "1px solid #eee", padding: 8 }}>{r.file ?? "-"}</td>
+              <td style={{ border: "1px solid #eee", padding: 8 }}>{r.line}</td>
+              <td style={{ border: "1px solid #eee", padding: 8 }}>{r.type}</td>
+              <td style={{ border: "1px solid #eee", padding: 8, fontFamily: "monospace" }}>
+                {r.redacted ?? r.snippet}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
-};
-
-export default ScanResults;
+}

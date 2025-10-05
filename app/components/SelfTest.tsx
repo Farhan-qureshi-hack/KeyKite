@@ -1,54 +1,31 @@
 // app/components/SelfTest.tsx
+"use client";
 import { useState } from "react";
-import { Finding } from "../../utils/security"; // frontend-safe type
+import { Finding } from "../../utils/security";
 
-interface SelfTestProps {
-  runSelfTest: () => Promise<Finding[]>;
-}
-
-const SelfTest = ({ runSelfTest }: SelfTestProps) => {
-  const [results, setResults] = useState<Finding[]>([]);
+export default function SelfTest({ runSelfTest }: { runSelfTest: () => Promise<Finding[]> }) {
+  const [results, setResults] = useState<Finding[] | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleRun = async () => {
+  const go = async () => {
     setLoading(true);
-    try {
-      const findings = await runSelfTest();
-      setResults(findings);
-    } finally {
-      setLoading(false);
-    }
+    const data = await runSelfTest();
+    setResults(data);
+    setLoading(false);
   };
 
   return (
-    <div>
-      <button onClick={handleRun} disabled={loading}>
-        {loading ? "Running..." : "Run Self Test"}
+    <div style={{ marginTop: 24 }}>
+      <button onClick={go} disabled={loading} style={{ padding: "8px 12px" }}>
+        {loading ? "Running..." : "Run Self-Test"}
       </button>
-      {results.length > 0 && (
-        <table style={{ borderCollapse: "collapse", marginTop: 16 }}>
-          <thead>
-            <tr>
-              <th>Line</th>
-              <th>Type</th>
-              <th>Snippet</th>
-            </tr>
-          </thead>
-          <tbody>
-            {results.map((r, idx) => (
-              <tr key={idx}>
-                <td style={{ border: "1px solid #eee", padding: 8 }}>{r.line}</td>
-                <td style={{ border: "1px solid #eee", padding: 8 }}>{r.type}</td>
-                <td style={{ border: "1px solid #eee", padding: 8, fontFamily: "monospace" }}>
-                  {r.snippet}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+
+      {results && (
+        <div style={{ marginTop: 12 }}>
+          <h4>Self-Test Results</h4>
+          <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(results, null, 2)}</pre>
+        </div>
       )}
     </div>
   );
-};
-
-export default SelfTest;
+}

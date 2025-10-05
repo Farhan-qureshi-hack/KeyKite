@@ -1,9 +1,5 @@
 node_modules/
 .next/
 .env.local
-.env.local.template
+.env.local.local
 .DS_Store
-npm-debug.log
-.vscode/
-out/
-dist/

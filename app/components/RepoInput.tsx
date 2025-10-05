@@ -1,29 +1,31 @@
+// app/components/RepoInput.tsx
+"use client";
 import { useState } from "react";
 
-// Add onScan to props
 export interface RepoInputProps {
-  onScan: (repoPath: string) => Promise<void>;
+  onScan: (repoUrl: string) => Promise<void>;
 }
 
 export default function RepoInput({ onScan }: RepoInputProps) {
-  const [repoPath, setRepoPath] = useState("");
+  const [repoUrl, setRepoUrl] = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!repoPath.trim()) return;
-    await onScan(repoPath);
+    if (!repoUrl.trim()) return;
+    await onScan(repoUrl.trim());
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={submit} style={{ marginBottom: 16 }}>
       <input
-        type="text"
-        value={repoPath}
-        onChange={(e) => setRepoPath(e.target.value)}
-        placeholder="Enter repo path"
-        style={{ width: "300px", marginRight: "10px" }}
+        value={repoUrl}
+        onChange={(e) => setRepoUrl(e.target.value)}
+        placeholder="https://github.com/owner/repo"
+        style={{ padding: 8, width: 360, marginRight: 8 }}
       />
-      <button type="submit">Scan</button>
+      <button type="submit" style={{ padding: "8px 12px" }}>
+        Scan Repo
+      </button>
     </form>
   );
 }
